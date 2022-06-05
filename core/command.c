@@ -11,6 +11,9 @@ static int32_t read_int(const char *s, size_t len)
 {
     int sign = 1;
     int32_t val = 0;
+    if (len == 0)
+        return 0;
+
     if (*s == '-')
     {
         sign = -1;
@@ -27,6 +30,8 @@ static int32_t read_int(const char *s, size_t len)
     {
         val *= 10;
         val += (*s - '0');
+        len--;
+        s++;
     }
 
     return sign * val;

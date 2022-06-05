@@ -56,7 +56,12 @@ static void timer_stop(void)
 
 static void timer_set_delay(int32_t delay_ms)
 {
-    OCR1A = delay_ms * F_CPU / 1000UL / 256UL; 
+    if (delay_ms <= 0)
+        return;
+    uint32_t cnt = delay_ms * F_CPU / 1000UL / 256UL;
+    if (cnt > 65535UL)
+        cnt = 65535UL;
+    OCR1A = cnt;
     TCCR1B |= 0x04; // /256
 }
 
@@ -89,7 +94,9 @@ int main(void)
 
     sei();
 
-    command_process(&desc, "MD", 2);
+    //focuser_set_speed(&desc, 100);
+    command_process(&desc, "SS100", 5);
+    command_process(&desc, "MDT", 3);
     process_step();
 
     while (1)
