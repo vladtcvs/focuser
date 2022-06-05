@@ -84,6 +84,12 @@ ISR(TIMER1_COMPA_vect)
     process_step();
 }
 
+static void on_command_receive(const char *cmd, size_t len)
+{
+    command_process(&desc, cmd, len);
+    process_step();
+}
+
 int main(void)
 {
     DDRD |= 1 << 0;
@@ -94,10 +100,8 @@ int main(void)
 
     sei();
 
-    //focuser_set_speed(&desc, 100);
-    command_process(&desc, "SS100", 5);
-    command_process(&desc, "MDT", 3);
-    process_step();
+    on_command_receive("SS100", 5);
+    on_command_receive("MDT", 5);
 
     while (1)
     {
