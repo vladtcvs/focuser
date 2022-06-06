@@ -1,15 +1,29 @@
 #define F_CPU 16000000UL
 
 #include <avr/io.h>
+#include <avr/pgmspace.h>
 #include <avr/interrupt.h>
+
+#include <util/delay.h>
 
 #include <focuser_core.h>
 #include <config.h>
 #include <uln2003.h>
 
+#include <usbdrv.h>
+#include <oddebug.h>
+
+#include <string.h>
+
+static char buf[20];
+static int buflen = 0;
+
 static void response(const char *msg)
 {
-
+    buflen = strlen(msg);
+    if (buflen > sizeof(buf))
+        buflen = sizeof(buf);
+    memcpy(buf, msg, buflen);
 }
 
 static void set_dir(bool dir)
@@ -90,6 +104,35 @@ static void on_command_receive(const char *cmd, size_t len)
     process_step();
 }
 
+uchar   usbFunctionRead(uchar *data, uchar len)
+{
+    if (len > buflen)
+        len = buflen;
+    memcpy(data, buf, len);
+    buflen = 0;
+    return len;
+}
+
+uchar   usbFunctionWrite(uchar *data, uchar len)
+{
+    on_command_receive(data, len);
+    return 1;
+}
+
+USB_PUBLIC uchar usbFunctionSetup(uchar data[8])
+{
+    usbRequest_t    *rq = (void *)data;
+
+    if((rq->bmRequestType & USBRQ_TYPE_MASK) == USBRQ_TYPE_CLASS)
+    {
+    }
+    else
+    {
+        /* no vendor specific requests implemented */
+    }
+    return 0;
+}
+
 int main(void)
 {
     DDRD |= 1 << 0;
@@ -98,13 +141,29 @@ int main(void)
     command_init(response);
     timer_init();
 
-    sei();
+    PORTD |= 1;
 
-    on_command_receive("SS100", 5);
-    on_command_receive("MDT", 5);
+    _delay_ms(200);
+
+    PORTD &= ~1;
+
+    odDebugInit();
+
+    usbInit();
+
+    usbDeviceDisconnect();
+
+    _delay_ms(200);
+
+    PORTD |= 1;
+
+    usbDeviceConnect();
+
+    sei();
 
     while (1)
     {
+        usbPoll();
     }
 
     return 0;
