@@ -3,6 +3,7 @@
 #include <avr/io.h>
 #include <avr/pgmspace.h>
 #include <avr/interrupt.h>
+#include <avr/wdt.h>
 
 #include <util/delay.h>
 
@@ -15,7 +16,7 @@
 
 #include <string.h>
 
-static char buf[20];
+static char buf[8];
 static int buflen = 0;
 
 static void response(const char *msg)
@@ -104,13 +105,23 @@ static void on_command_receive(const char *cmd, size_t len)
     process_step();
 }
 
+static bool expect_read = false;
+
 uchar   usbFunctionRead(uchar *data, uchar len)
 {
-    if (len > buflen)
-        len = buflen;
-    memcpy(data, buf, len);
-    buflen = 0;
-    return len;
+    if (expect_read)
+    {
+        if (len > buflen)
+            len = buflen;
+        memcpy(data, buf, len);
+        buflen = 0;
+        expect_read = false;
+        return len;
+    }
+    else
+    {
+        return 0;
+    }
 }
 
 uchar   usbFunctionWrite(uchar *data, uchar len)
@@ -121,14 +132,23 @@ uchar   usbFunctionWrite(uchar *data, uchar len)
 
 USB_PUBLIC uchar usbFunctionSetup(uchar data[8])
 {
+    expect_read = false;
     usbRequest_t    *rq = (void *)data;
-
-    if((rq->bmRequestType & USBRQ_TYPE_MASK) == USBRQ_TYPE_CLASS)
+    switch (rq->bRequest)
     {
-    }
-    else
-    {
-        /* no vendor specific requests implemented */
+        case 0:
+            PORTD &= ~1;
+            return 0;
+        case 1:
+            PORTD |= 1;
+            return 0;
+        case 2:
+            return USB_NO_MSG;
+        case 3:
+            expect_read = true;
+            return USB_NO_MSG;
+        default:
+            break;
     }
     return 0;
 }
@@ -137,33 +157,40 @@ int main(void)
 {
     DDRD |= 1 << 0;
     uln2003_init();
-    focuser_init(&desc, STEPS_PER_MM, DEFAULT_SPEED_UM_PER_SEC, set_dir, make_step, unforce);
+    focuser_init(&desc, STEPS_PER_MM, DEFAULT_SPEED_UM_PER_SEC, DEFAULT_MINPOS, DEFAULT_MAXPOS, set_dir, make_step, unforce);
     command_init(response);
     timer_init();
+
+    wdt_enable(WDTO_1S);
 
     PORTD |= 1;
 
     _delay_ms(200);
+    wdt_reset();
 
     PORTD &= ~1;
 
     odDebugInit();
 
     usbInit();
+    wdt_reset();
 
     usbDeviceDisconnect();
 
     _delay_ms(200);
+    wdt_reset();
 
     PORTD |= 1;
 
     usbDeviceConnect();
-
+    wdt_reset();
+    
     sei();
 
     while (1)
     {
         usbPoll();
+        wdt_reset();
     }
 
     return 0;

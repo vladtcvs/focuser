@@ -22,6 +22,10 @@ struct focuser_state_s
     int32_t steps_target_position;
     int32_t speed_time_delay_ms;
     bool    speed_direction;
+    int32_t min_position;
+    int32_t max_position;
+    int32_t steps_minpos;
+    int32_t steps_maxpos;
 };
 
 struct focuser_actions_s
@@ -41,12 +45,15 @@ struct focuser_descriptor_s
 int32_t focuser_timer_handler(struct focuser_descriptor_s *desc);
 
 void focuser_set_speed(struct focuser_descriptor_s *desc, int32_t um_per_sec);
-void focuser_move_to_target_um(struct focuser_descriptor_s *desc, int32_t target_um);
+void focuser_set_minpos_um(struct focuser_descriptor_s *desc, int32_t um);
+void focuser_set_maxpos_um(struct focuser_descriptor_s *desc, int32_t um);
+
+int focuser_move_to_target_um(struct focuser_descriptor_s *desc, int32_t target_um);
 void focuser_move_with_speed(struct focuser_descriptor_s *desc, bool dir);
 void focuser_stop(struct focuser_descriptor_s *desc);
 
 int32_t focuser_get_position_um(struct focuser_descriptor_s *desc);
-void focuser_set_position_um(struct focuser_descriptor_s *desc, int32_t pos_um);
+int focuser_set_position_um(struct focuser_descriptor_s *desc, int32_t pos_um);
 
 
 void focuser_unforce(struct focuser_descriptor_s *desc);
@@ -55,6 +62,8 @@ bool focuser_is_busy(struct focuser_descriptor_s *desc);
 void focuser_init(struct focuser_descriptor_s *desc,
                   int32_t steps_per_mm,
                   int32_t speed_um_per_sec,
+                  int32_t default_minpos,
+                  int32_t default_maxpos,
                   void (*set_dir)(bool dir),
                   void (*make_step)(void),
                   void (*unforce)(void));
